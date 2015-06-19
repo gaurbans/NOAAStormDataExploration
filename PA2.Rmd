@@ -1,0 +1,203 @@
+# Reproducible Research: Peer Assessment 2: NOAA Storm Data Exploration
+
+This assessment analyzes the impacts of storms through storm data from NOAA. We'll answer two key questions by looking at the data: 1) Across the United States, which types of storm events are most harmful with respect to population health? and 2) Across the United States, which types of storm events have the greatest economic consequences? 
+
+To answer these questions, we'll have to obtain and process storm data according to the National Oceanic and Atmospheric Administration (NOAA) Storm Data. We'll then generate plots to answer our questions, as well as discuss our results. The details are below. 
+
+## Data Processing
+This first bit of code below downloads the the data and reads it into R. The date column is also set as a date rather than kept as a factor.
+```{r getdata, cache=TRUE} 
+setInternet2(use=TRUE)
+fileurl <- "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2"
+download.file(fileurl, destfile ="repdata-data-StormData.csv.bz2")
+df <- read.csv("repdata-data-StormData.csv.bz2")
+df$BGN_DATE <- as.Date(df$BGN_DATE, "%m/%d/%Y")
+```
+
+### Sorting Event Types
+Before we analyze the data, we first need to clean it up a bit. The raw data has 985 unique event types while the NOAA Storm Data has only 48.
+
+Let's begin by making a new column to sort the cleaned up event type data. We'll then use regular expressions to recode many event types into the 48 NOAA categories. The code for this is below. 
+
+```{r eventcleaning, cache=TRUE}
+df$EVTYPEclean <- tolower(as.character(df$EVTYPE))
+
+df[grep("^summ", df$EVTYPEclean), "EVTYPEclean"] <- "other"
+df[grep("coastal+(.*)flood", df$EVTYPEclean), "EVTYPEclean"] <- "coastal flood"
+df[grep("cstl+(.*)flood", df$EVTYPEclean), "EVTYPEclean"] <- "coastal flood"
+df[grep("^cold$", df$EVTYPEclean), "EVTYPEclean"] <- "cold/wind chill"
+df[grep("prolong cold", df$EVTYPEclean), "EVTYPEclean"] <- "cold/wind chill"
+df[grep("^cold temperature", df$EVTYPEclean), "EVTYPEclean"] <- "cold/wind chill"
+df[grep("(unseasonable|extended) cold", df$EVTYPEclean), "EVTYPEclean"] <- "cold/wind chill"
+df[grep("dust dev[ie]l", df$EVTYPEclean), "EVTYPEclean"] <- "dust devil"
+df[grep("dust+(.*)storm", df$EVTYPEclean), "EVTYPEclean"] <- "dust storm"
+df[grep("dust$", df$EVTYPEclean), "EVTYPEclean"] <- "dust storm"
+df[grep("^heat", df$EVTYPEclean), "EVTYPEclean"] <- "heat"
+df[grep("(extreme|excessive|record) heat", df$EVTYPEclean), "EVTYPEclean"] <- "excessive heat"
+df[grep("(extreme|excessive|record)+(.*)cold", df$EVTYPEclean), "EVTYPEclean"] <- "extreme cold/wind chill"
+df[grep("(urban|minor|flash)+(.*)floo", df$EVTYPEclean), "EVTYPEclean"] <- "flash flood"
+df[grep("(river|ice)+(.*)flood", df$EVTYPEclean), "EVTYPEclean"] <- "flood"
+df[grep("flood+(.*)flash", df$EVTYPEclean), "EVTYPEclean"] <- "flash flood"
+df[grep("frost|freeze", df$EVTYPEclean), "EVTYPEclean"] <- "frost/freeze"
+df[grep("(freezing|ice) fog", df$EVTYPEclean), "EVTYPEclean"] <- "freezing fog"
+df[grep("fog and cold", df$EVTYPEclean), "EVTYPEclean"] <- "freezing fog"
+df[grep("^fog|(dense fog)", df$EVTYPEclean), "EVTYPEclean"] <- "fog"
+df[grep("smoke", df$EVTYPEclean), "EVTYPEclean"] <- "dense smoke"
+df[grep("[^marine ]+(.*)hail|^hail", df$EVTYPEclean), "EVTYPEclean"] <- "hail"
+df[grep("gusty wind", df$EVTYPEclean), "EVTYPEclean"] <- "strong wind"
+df[grep("^[^marine]+(.*)thunder+(.*)wind|^thunder+(.*)wind", df$EVTYPEclean), "EVTYPEclean"] <- "thunderstorm wind"
+df[grep("tunder+(.*)wind", df$EVTYPEclean), "EVTYPEclean"] <- "thunderstorm wind"
+df[grep("marine tstm+(.*)wind", df$EVTYPEclean), "EVTYPEclean"] <- "marine thunderstorm wind"
+df[grep("non+(.*)tstm+(.*)wind", df$EVTYPEclean), "EVTYPEclean"] <- "strong wind"
+df[grep("tstm", df$EVTYPEclean), "EVTYPEclean"] <- "thunderstorm wind"
+df[grep("water+(.*)sp", df$EVTYPEclean), "EVTYPEclean"] <- "waterspout"
+df[grep("funnel", df$EVTYPEclean), "EVTYPEclean"] <- "funnel cloud"
+df[grep("blizz", df$EVTYPEclean), "EVTYPEclean"] <- "blizzard"
+df[grep("(heavy|hvy)+(.*)snow", df$EVTYPEclean), "EVTYPEclean"] <- "heavy snow"
+df[grep("freez+(.*)rain", df$EVTYPEclean), "EVTYPEclean"] <- "ice storm"
+df[grep("ice+(.*)storm", df$EVTYPEclean), "EVTYPEclean"] <- "ice storm"
+df[grep("blowing+(.*)snow", df$EVTYPEclean), "EVTYPEclean"] <- "blizzard"
+df[grep("lack snow", df$EVTYPEclean), "EVTYPEclean"] <- "other"
+df[grep("snow drought", df$EVTYPEclean), "EVTYPEclean"] <- "other"
+df[grep("lake+(.*)snow", df$EVTYPEclean), "EVTYPEclean"] <- "lake-effect snow"
+df[grep("light+(.*)snow", df$EVTYPEclean), "EVTYPEclean"] <- "winter weather"
+df[grep("snow", df$EVTYPEclean), "EVTYPEclean"] <- "heavy snow"
+df[grep("surge", df$EVTYPEclean), "EVTYPEclean"] <- "storm surge/tide"
+df[grep("coastal+(.*)storm", df$EVTYPEclean), "EVTYPEclean"] <- "thunderstorm wind"
+df[grep("coastal", df$EVTYPEclean), "EVTYPEclean"] <- "coastal flood"
+df[grep("hurric", df$EVTYPEclean), "EVTYPEclean"] <- "hurricane (typhoon)"
+df[grep("winter+(.*)storm", df$EVTYPEclean), "EVTYPEclean"] <- "winter storm"
+df[grep("[^marine ]+high+(.*)wind|^high+(.*)wind", df$EVTYPEclean), "EVTYPEclean"] <- "high wind"
+df[grep("heavy rain", df$EVTYPEclean), "EVTYPEclean"] <- "heavy rain"
+df[grep("^thu+(.*)wind", df$EVTYPEclean), "EVTYPEclean"] <- "thunderstorm wind"
+df[grep("record low rain", df$EVTYPEclean), "EVTYPEclean"] <- "drought"
+df[grep("rain", df$EVTYPEclean), "EVTYPEclean"] <- "heavy rain"
+df[grep("lake+(.*)flood", df$EVTYPEclean), "EVTYPEclean"] <- "lakeshore flood"
+df[grep("marine mishap", df$EVTYPEclean), "EVTYPEclean"] <- "other"
+df[grep("marine accident", df$EVTYPEclean), "EVTYPEclean"] <- "other"
+df[grep("rip", df$EVTYPEclean), "EVTYPEclean"] <- "rip current"
+df[grep("sleet", df$EVTYPEclean), "EVTYPEclean"] <- "sleet"
+df[grep("(high|blow-out)+(.*)tide", df$EVTYPEclean), "EVTYPEclean"] <- "storm surge/tide"
+df[grep("torn", df$EVTYPEclean), "EVTYPEclean"] <- "tornado"
+df[grep("typh", df$EVTYPEclean), "EVTYPEclean"] <- "hurricane (typhoon)"
+df[grep("(beach|tidal) flood", df$EVTYPEclean), "EVTYPEclean"] <- "coastal flood"
+df[grep("urban+(.*)fld", df$EVTYPEclean), "EVTYPEclean"] <- "flash flood"
+df[grep("^floodi|(^st+(.*)fl)", df$EVTYPEclean), "EVTYPEclean"] <- "flash flood"
+df[grep("^flood", df$EVTYPEclean), "EVTYPEclean"] <- "flood"
+df[grep("(local|small)+(.*)flood", df$EVTYPEclean), "EVTYPEclean"] <- "flash flood"
+df[grep("(breakup|major|rural|highway)+(.*)flood", df$EVTYPEclean), "EVTYPEclean"] <- "flood"
+df[grep("volcan", df$EVTYPEclean), "EVTYPEclean"] <- "volcanic ash"
+df[grep("warm", df$EVTYPEclean), "EVTYPEclean"] <- "heat"
+df[grep("precip", df$EVTYPEclean), "EVTYPEclean"] <- "heavy rain"
+df[grep("ice pellet", df$EVTYPEclean), "EVTYPEclean"] <- "ice storm"
+df[grep("ice storm", df$EVTYPEclean), "EVTYPEclean"] <- "Ice Storm"
+df[grep("ice", df$EVTYPEclean), "EVTYPEclean"] <- "winter weather"
+df[grep("Ice Storm", df$EVTYPEclean), "EVTYPEclean"] <- "ice storm"
+df[grep("lightn", df$EVTYPEclean), "EVTYPEclean"] <- "thunderstorm wind"
+df[grep("micro", df$EVTYPEclean), "EVTYPEclean"] <- "strong wind"
+df[grep("(extreme|bitter)+(.*)chill", df$EVTYPEclean), "EVTYPEclean"] <- "extreme cold/wind chill"
+df[grep("^wind chill|low wind chill", df$EVTYPEclean), "EVTYPEclean"] <- "cold/wind chill"
+df[grep("^[^marine]+(.*)thunder|^thunder", df$EVTYPEclean), "EVTYPEclean"] <- "thunderstorm wind"
+df[grep("hot", df$EVTYPEclean), "EVTYPEclean"] <- "heat"
+df[grep("mirco|micob", df$EVTYPEclean), "EVTYPEclean"] <- "strong wind"
+df[grep("dry", df$EVTYPEclean), "EVTYPEclean"] <- "drought"
+df[grep("wint+(.*)(weather|mix)", df$EVTYPEclean), "EVTYPEclean"] <- "winter weather"
+df[grep("low+(.*)temp", df$EVTYPEclean), "EVTYPEclean"] <- "cold/wind chill"
+df[grep("high+(.*)temp", df$EVTYPEclean), "EVTYPEclean"] <- "extreme heat"
+df[grep("tropical storm", df$EVTYPEclean), "EVTYPEclean"] <- "tropical storm"
+df[grep("fire", df$EVTYPEclean), "EVTYPEclean"] <- "wildfire"
+df[grep("shower", df$EVTYPEclean), "EVTYPEclean"] <- "heavy rain"
+df[grep("^wind|gust", df$EVTYPEclean), "EVTYPEclean"] <- "strong wind"
+df[grep("surf", df$EVTYPEclean), "EVTYPEclean"] <- "storm surge/tide"
+df[grep("record temp|temperature record", df$EVTYPEclean), "EVTYPEclean"] <- "extreme heat"
+df[grep("^cold|^un+(.*)cold", df$EVTYPEclean), "EVTYPEclean"] <- "cold/wind chill"
+df[grep("therm", df$EVTYPEclean), "EVTYPEclean"] <- "cold/wind chill"
+df[grep("slide", df$EVTYPEclean), "EVTYPEclean"] <- "debris flow"
+df[grep("(down|grad|storm force)+(.*)wind", df$EVTYPEclean), "EVTYPEclean"] <- "strong wind"
+df[grep("winds|wind damage|^ wind$", df$EVTYPEclean), "EVTYPEclean"] <- "strong wind"
+df[grep("icy road", df$EVTYPEclean), "EVTYPEclean"] <- "winter weather"
+```
+Okay, so we've worked through a lot and reduced the number of unique storm events from 985 to 119. This is still a ways away from the 48 in the NoAA Storm Data, but hopefully we've done enough to answer our two key questions in a reasonable manner. If not, we can come back and rework the storm events. So let's get to some data analysis for now. 
+
+### Answering the First Question
+Let's start looking at fatalities and injuries by storm event type. 
+```{r qone, results='asis', cache=TRUE}
+fat <- tapply(df$FATALITIES, df$EVTYPEclean, sum, na.rm=T)
+inj <- tapply(df$INJURIES, df$EVTYPEclean, sum, na.rm=T)
+toptenfat <- as.data.frame(head(sort(fat, decreasing = T), 10))
+toptenfat <- cbind(rownames(toptenfat), toptenfat)
+names(toptenfat) <- c("Event", "Fatalities")
+topteninj <- as.data.frame(head(sort(inj, decreasing = T), 10))
+topteninj <- cbind(rownames(topteninj), topteninj)
+names(topteninj) <- c("Event", "Injuries")
+library(xtable)
+print(xtable(prettyNum(toptenfat, big.mark=","), digits = 0), include.rownames=F, type="html")
+print(xtable(prettyNum(topteninj, big.mark=","), digits = 0), include.rownames=F, type="html")
+```
+From a quick look at the storm events with the highest fatalities and injuries, we see that the top ten events are all categorized in the NOAA Storm Data. This let's us know that we've caught the biggest offenders, so to speak. Further recoding storm event types to match up with the NOAA Storm Data will likely not have a significant impact on results. 
+
+### Answering the Second Question
+Let's do a similar test for the second question. 
+```{r qtwo, results='asis', cache=TRUE}
+pdmg <- tapply(df$PROPDMG, df$EVTYPEclean, sum, na.rm=T)
+cdmg <- tapply(df$CROPDMG, df$EVTYPEclean, sum, na.rm=T)
+dmg <- as.data.frame(cbind(rownames(pdmg), pdmg, cdmg))
+dmg$Damage <- pdmg + cdmg
+dmg <- dmg[order(dmg$Damage, decreasing = T),]
+colnames(dmg) <- c("Event", "Property Damage", "Crop Damage", "Damage")
+toptendmg <- head(dmg, 10)
+library(xtable)
+print(xtable(prettyNum(toptendmg, big.mark=","), digits = 0), include.rownames=F, type="html")
+```
+Again, we see that the top ten events with respect to economic consequences are all categorized in the NOAA Storm Data. Therefore we can reasonably conclude that further recoding storm event types to match up with the NoAA Storm Data will likely not have a significant impact on results. 
+
+## Results
+We've already done the bulk of the coding for the results, so let's focus on plotting what we have and discussing them. 
+
+### Across the United States, which types of storm events are most harmful with respect to population health?
+We've already seen from the first two tables above that tornadoes resulted in the most fatalities and injuries among all storm events from 1950 through 2011. In both categories, inverse population health impacts because of tornadoes were far greater than the impacts of all other storm events. Even if we combine similar storm events such as "heat" and "excessive heat", or "flood" and "flash flood", we see that there were higher fatalities and injuries resulting from tornadoes. 
+
+Let's plot bar charts of fatalities and injuries for the top ten storm event types. 
+```{r healthplots}
+library(ggplot2)
+library(scales)
+fatplot <- ggplot(data=toptenfat, aes(x=reorder(Event, -Fatalities), y=Fatalities)) + 
+  geom_bar(stat="identity") + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + 
+  scale_y_continuous(labels = comma) + 
+  labs(title="Fatalities by Storm Event Type", x="")
+print(fatplot)
+injplot <- ggplot(data=topteninj, aes(x=reorder(Event, -Injuries), y=Injuries)) + 
+  geom_bar(stat="identity") + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + 
+  scale_y_continuous(labels = comma) + 
+  labs(title="Injuries by Storm Event Type", x="")
+print(injplot)
+```
+
+### Across the United States, which types of storm events have the greatest economic consequences?
+Again, we've largely answered this question above in the last table. Unlike fatalities and injuries, we can sum property damage and crop damage for each storm event because these are dollar values. Looking at the total damage done by each storm event, we see that "thunderstorm wind" has caused the greatest economic damage since 1950, at around $3.5 million. This was closely followed by "tornado", whereas economic damage attributable to the third most damaging storm event,--"flash flood"--was nearly half the amount attributable to "thunderstorm wind". However, if we combine "flash flood" and "flood", then to combined category resulted in economic damage around $2.8 million. This is much closer to the damage attributable to "thunderstorm wind" and "tornado".
+
+Another interesting thing to note is the amount of crop damage attributable to "hail". While property damage caused by a storm event usually far outweighed crop damage, in the case of "hail" the disparity was much smaller. "Hail" was by far the biggest contributor to crop damage among all storm events. 
+
+Let's create a bar plot of economic damage for the top ten storm event types. 
+```{r econplots}
+library(reshape2)
+damage <- melt(toptendmg, id=c("Event", "Damage"))
+damage$value <- as.numeric(damage$value)
+names(damage) <- c("Event", "TotDam", "Damage Type", "Damage")
+econplot <- ggplot(data=damage, aes(x=reorder(Event, -Damage), y=Damage, fill=`Damage Type`)) + 
+  geom_bar(stat="identity") + 
+  theme(axis.title.y = element_text(vjust=1), axis.text.x = element_text(angle = 45, hjust = 1), legend.position=c(0.8, 0.8)) + 
+  scale_y_continuous(labels = comma) + 
+  labs(title="Economic Damage by Storm Event Type", x="")
+print(econplot)
+```
+
+
+
+
+
+
+
+
